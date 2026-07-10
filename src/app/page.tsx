@@ -2,8 +2,15 @@
 
 import React, { useRef, useEffect } from "react";
 import { motion, useScroll, useTransform, useMotionValueEvent, AnimatePresence } from "framer-motion";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { ArrowRight, ChefHat, Sofa, BedDouble, Hammer, CheckCircle, MapPin, Phone, Mail, Star, Menu, X } from "lucide-react";
 import Image from "next/image";
+
+if (typeof window !== "undefined") {
+  gsap.registerPlugin(ScrollTrigger, useGSAP);
+}
 import clsx from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -71,7 +78,7 @@ function Navbar() {
                   <a 
                     key={item} 
                     href={`#${item.toLowerCase()}`} 
-                    onClick={() => setIsOpen(false)}
+                    onClick={() => setTimeout(() => setIsOpen(false), 150)}
                     className="text-lg font-medium text-white/80 hover:text-gold transition-colors"
                   >
                     {item}
@@ -94,118 +101,155 @@ function Navbar() {
 // HERO
 // ---------------------------------------------------------
 function Hero() {
-  const { scrollY } = useScroll();
-  const opacity = useTransform(scrollY, [0, 400], [1, 0]);
-  const textY = useTransform(scrollY, [0, 400], [0, -50]);
-  const canvasOpacity = useTransform(scrollY, [0, 400], [0.6, 1]);
-  
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
+  const statsRef = useRef<HTMLDivElement>(null);
   const imagesRef = useRef<HTMLImageElement[]>([]);
   const frameCount = 192; // 0 to 191
 
-  useEffect(() => {
+  useGSAP(() => {
+    // Load images
     const images: HTMLImageElement[] = [];
+    let loadedCount = 0;
+    
     for (let i = 0; i < frameCount; i++) {
       const img = new window.Image();
+      img.decoding = "async"; // Offload decoding to a background thread
       const num = i.toString().padStart(4, '0');
       img.src = `/golden_modular_frames/frame_${num}.png`;
+      img.onload = () => {
+        loadedCount++;
+        if (loadedCount === 1) {
+          // Draw first frame immediately
+          const canvas = canvasRef.current;
+          const ctx = canvas?.getContext('2d', { alpha: false }); // Disable alpha for perf
+          if (canvas && ctx) {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          }
+        }
+      };
       images.push(img);
     }
     imagesRef.current = images;
-    
-    // Draw first frame when loaded
-    images[0].onload = () => {
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(images[0], 0, 0, canvas.width, canvas.height);
+
+    // Create sequence animation
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: containerRef.current,
+        start: "top top",
+        end: "+=500%", // Increased scroll distance to slow down frames
+        scrub: 1.5, // Smooth scrub with slight easing
+        pin: true,
+      }
+    });
+
+    const playhead = { frame: 0 };
+    tl.to(playhead, {
+      frame: frameCount - 1,
+      ease: "none",
+      duration: 1, // Stretch across entire scroll
+      onUpdate: () => {
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext('2d', { alpha: false });
+        const frameIndex = Math.round(playhead.frame);
+        const img = imagesRef.current[frameIndex];
+        if (canvas && ctx && img && img.complete) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         }
       }
-    };
-  }, []);
+    }, 0);
 
-  useMotionValueEvent(scrollY, "change", (latest) => {
-    const maxScroll = typeof window !== 'undefined' ? window.innerHeight * 2 : 2000;
-    const progress = Math.min(Math.max(latest / maxScroll, 0), 1);
-    const frameIndex = Math.floor(progress * (frameCount - 1));
-    
-    const canvas = canvasRef.current;
-    if (canvas && imagesRef.current[frameIndex]) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(imagesRef.current[frameIndex], 0, 0, canvas.width, canvas.height);
-      }
-    }
-  });
+    // Fade out text block early so it gets out of the way of the frames
+    tl.to(textRef.current, {
+      opacity: 0,
+      y: -50,
+      ease: "power2.inOut",
+      duration: 0.15
+    }, 0);
+
+    // Fade out stats block early
+    tl.to(statsRef.current, {
+      opacity: 0,
+      ease: "power2.inOut",
+      duration: 0.15
+    }, 0);
+
+    // Canvas opacity transition (0.6 to 1)
+    gsap.set(canvasRef.current, { opacity: 0.6 });
+    tl.to(canvasRef.current, { 
+      opacity: 1, 
+      ease: "none",
+      duration: 1
+    }, 0);
+
+  }, { scope: containerRef });
 
   return (
-    <section className="relative h-[300vh] w-full bg-charcoal">
-      <div className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center">
-        <div className="absolute inset-0 w-full h-full bg-charcoal">
-          <motion.canvas 
-            ref={canvasRef} 
-            width={1920} 
-            height={1080} 
-            style={{ opacity: canvasOpacity }}
-            className="w-full h-full object-cover"
-          />
-        </div>
+    <section ref={containerRef} className="h-screen w-full bg-charcoal overflow-hidden flex items-center justify-center relative" style={{ willChange: "transform" }}>
+      <div className="absolute inset-0 w-full h-full bg-charcoal">
+        <canvas 
+          ref={canvasRef} 
+          width={1920} 
+          height={1080} 
+          className="w-full h-full object-cover"
+          style={{ willChange: "opacity" }}
+        />
+      </div>
 
-        <motion.div style={{ opacity, y: textY }} className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 w-full flex flex-col items-center text-center mt-20">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.2 }}
-            className="inline-block px-4 py-1.5 rounded-full border border-white/20 glass text-white/90 text-xs font-semibold tracking-widest uppercase mb-6"
-          >
-            Premium Interior Design Studio
-          </motion.div>
-          
-          <motion.h1 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.4 }}
-            className="text-5xl md:text-7xl lg:text-8xl font-medium tracking-tight text-white mb-6 max-w-5xl leading-[1.1]"
-          >
-            Crafting Timeless <span className="text-gold italic font-light pr-2">Modular</span> Spaces
-          </motion.h1>
-          
-          <motion.p 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.6 }}
-            className="text-lg md:text-xl text-white/70 max-w-2xl font-light mb-12 leading-relaxed"
-          >
-            Premium modular kitchens, wardrobes and complete interior solutions designed with absolute precision and elegant minimalism.
-          </motion.p>
-          
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.8 }}
-            className="flex flex-col sm:flex-row items-center gap-6"
-          >
-            <motion.a href="#portfolio" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="px-8 py-4 bg-white text-charcoal rounded-full font-medium hover:bg-gold hover:text-white transition-all duration-300 w-full sm:w-auto shadow-lg shadow-white/5 hover:shadow-gold/20 flex justify-center">
-              Explore Portfolio
-            </motion.a>
-            <motion.a href="#contact" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="px-8 py-4 bg-transparent border border-white/30 text-white rounded-full font-medium hover:bg-white/10 transition-all duration-300 w-full sm:w-auto flex justify-center">
-              Book Consultation
-            </motion.a>
-          </motion.div>
-        </motion.div>
-
-        <motion.div 
-          style={{ opacity }}
-          className="absolute bottom-12 left-0 w-full px-6 md:px-12 pointer-events-none"
+      <div ref={textRef} className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 w-full flex flex-col items-center text-center mt-20">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.2 }}
+          className="inline-block px-4 py-1.5 rounded-full border border-white/20 glass text-white/90 text-xs font-semibold tracking-widest uppercase mb-6"
         >
-          <div className="max-w-7xl mx-auto flex justify-between items-center text-white/60 text-sm font-medium tracking-wide border-t border-white/10 pt-6">
-            <div className="flex flex-col"><span className="text-white text-2xl font-light">15+</span> Years Experience</div>
-            <div className="flex flex-col"><span className="text-white text-2xl font-light">500+</span> Premium Projects</div>
-            <div className="flex flex-col"><span className="text-white text-2xl font-light">1000+</span> Happy Clients</div>
-          </div>
+          Premium Interior Design Studio
         </motion.div>
+        
+        <motion.h1 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.4 }}
+          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-medium tracking-tight text-white mb-4 md:mb-6 max-w-4xl leading-[1.15] md:leading-[1.1]"
+        >
+          Crafting Timeless <span className="text-gold italic font-light pr-2">Modular</span> Spaces
+        </motion.h1>
+        
+        <motion.p 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.6 }}
+          className="text-base sm:text-lg text-white/70 max-w-2xl font-light mb-8 md:mb-10 leading-relaxed px-4 md:px-0"
+        >
+          Premium modular kitchens, wardrobes and complete interior solutions designed with absolute precision and elegant minimalism.
+        </motion.p>
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.8 }}
+          className="flex flex-col sm:flex-row items-center gap-4 md:gap-5 w-full sm:w-auto px-4 sm:px-0"
+        >
+          <motion.a href="#portfolio" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="px-6 py-3 md:px-7 md:py-3.5 bg-white text-charcoal rounded-full text-sm font-medium hover:bg-gold hover:text-white transition-all duration-300 w-full sm:w-auto shadow-lg shadow-white/5 hover:shadow-gold/20 flex justify-center">
+            Explore Portfolio
+          </motion.a>
+          <motion.a href="#contact" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="px-6 py-3 md:px-7 md:py-3.5 bg-transparent border border-white/30 text-white rounded-full text-sm font-medium hover:bg-white/10 transition-all duration-300 w-full sm:w-auto flex justify-center">
+            Book Consultation
+          </motion.a>
+        </motion.div>
+      </div>
+
+      <div 
+        ref={statsRef}
+        className="absolute bottom-12 left-0 w-full px-4 md:px-12 pointer-events-none z-10 hidden sm:block"
+      >
+        <div className="max-w-7xl mx-auto flex justify-between items-center text-white/60 text-xs md:text-sm font-medium tracking-wide border-t border-white/10 pt-6">
+          <div className="flex flex-col"><span className="text-white text-xl md:text-2xl font-light">15+</span> Years Experience</div>
+          <div className="flex flex-col"><span className="text-white text-xl md:text-2xl font-light">500+</span> Premium Projects</div>
+          <div className="flex flex-col"><span className="text-white text-xl md:text-2xl font-light">1000+</span> Happy Clients</div>
+        </div>
       </div>
     </section>
   );
@@ -260,6 +304,7 @@ function About() {
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.8 }}
           className="relative aspect-[4/5] rounded-2xl overflow-hidden"
+          style={{ willChange: "transform, opacity" }}
         >
           <Image src="/images/living_room.png" alt="Luxury Living Room" fill className="object-cover" />
         </motion.div>
@@ -657,12 +702,62 @@ function Footer() {
   );
 }
 
+function Preloader() {
+  const container = useRef<HTMLDivElement>(null);
+  const text1 = useRef<HTMLSpanElement>(null);
+  const text2 = useRef<HTMLSpanElement>(null);
+
+  useGSAP(() => {
+    const tl = gsap.timeline();
+    
+    // Fade in texts
+    tl.to([text1.current, text2.current], {
+      y: 0,
+      opacity: 1,
+      duration: 1,
+      stagger: 0.2,
+      ease: "power4.out",
+      delay: 0.2
+    });
+
+    // Hold for a moment, then slide texts up
+    tl.to([text1.current, text2.current], {
+      y: -50,
+      opacity: 0,
+      duration: 0.8,
+      stagger: 0.1,
+      ease: "power4.in",
+      delay: 0.5
+    });
+
+    // Slide the whole curtain up
+    tl.to(container.current, {
+      yPercent: -100,
+      duration: 1.2,
+      ease: "expo.inOut"
+    });
+  }, { scope: container });
+
+  return (
+    <div 
+      ref={container} 
+      className="fixed inset-0 z-[9999] bg-charcoal flex flex-col items-center justify-center pointer-events-none"
+    >
+      <div className="overflow-hidden flex gap-4 text-3xl md:text-5xl font-medium tracking-tighter uppercase text-white">
+        <span ref={text1} className="translate-y-[100%] opacity-0 inline-block">Golden</span>
+        <span ref={text2} className="translate-y-[100%] opacity-0 text-gold inline-block">Modular</span>
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------
 // MAIN PAGE EXPORT
 // ---------------------------------------------------------
 export default function Page() {
   return (
     <main className="bg-warm-white min-h-screen">
+      <Preloader />
       <Navbar />
       <Hero />
       <Marquee />
