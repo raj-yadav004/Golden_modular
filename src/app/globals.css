@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --color-gold: #d4af37;
+  --color-gold-light: #f3e5ab;
+  --color-charcoal: #1a1a1a;
+  --color-walnut: #4c2f27;
+  --color-warm-white: #fdfbf7;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-warm-white text-charcoal font-sans antialiased selection:bg-gold selection:text-white;
+  }
+}
+
+.glass {
+  @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.05)];
+}
+.glass-dark {
+  @apply bg-charcoal/80 backdrop-blur-md border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)];
+}
+
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-charcoal via-gray-700 to-charcoal;
+}
+.text-gradient-gold {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-gold to-yellow-600;
+}
