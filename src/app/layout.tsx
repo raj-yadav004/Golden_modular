@@ -18,7 +18,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="en">
       <body className={`${outfit.variable} font-sans antialiased bg-warm-white text-charcoal`}>
         {children}
       </body>

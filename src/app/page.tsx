@@ -24,6 +24,26 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 function Navbar() {
   const [isOpen, setIsOpen] = React.useState(false);
 
+  const handleScroll = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    setIsOpen(false);
+    
+    // Slight timeout on mobile to let the menu close state start
+    setTimeout(() => {
+      const element = document.getElementById(id);
+      if (element) {
+        const offset = 100; // Account for the floating navbar height
+        const elementPosition = element.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.scrollY - offset;
+        
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: "smooth"
+        });
+      }
+    }, 100);
+  };
+
   return (
     <div className="fixed top-4 md:top-6 left-0 w-full z-50 px-4 md:px-6 flex justify-center pointer-events-none">
       <motion.nav 
@@ -43,14 +63,30 @@ function Navbar() {
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center space-x-8 text-sm font-medium tracking-wide text-white/80">
             {["About", "Services", "Portfolio", "Process", "Contact"].map((item) => (
-              <a key={item} href={`#${item.toLowerCase()}`} className="hover:text-gold transition-colors duration-300 relative group py-2">
+              <a 
+                key={item} 
+                href={`#${item.toLowerCase()}`} 
+                onClick={(e) => handleScroll(e, item.toLowerCase())}
+                className="hover:text-gold transition-colors duration-300 relative group py-2"
+              >
                 {item}
                 <span className="absolute bottom-0 left-0 w-0 h-[2px] bg-gold transition-all duration-300 group-hover:w-full"></span>
               </a>
             ))}
           </div>
           
-          <button className="hidden md:flex px-6 py-2.5 bg-white text-charcoal rounded-full text-sm font-semibold hover:bg-gold hover:text-white transition-all duration-300 items-center gap-2 group shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)]">
+          <button 
+            onClick={(e) => {
+              const element = document.getElementById("contact");
+              if (element) {
+                const offset = 100;
+                const elementPosition = element.getBoundingClientRect().top;
+                const offsetPosition = elementPosition + window.scrollY - offset;
+                window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+              }
+            }}
+            className="hidden md:flex px-6 py-2.5 bg-white text-charcoal rounded-full text-sm font-semibold hover:bg-gold hover:text-white transition-all duration-300 items-center gap-2 group shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)]"
+          >
             Book Consultation
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </button>
@@ -78,13 +114,27 @@ function Navbar() {
                   <a 
                     key={item} 
                     href={`#${item.toLowerCase()}`} 
-                    onClick={() => setTimeout(() => setIsOpen(false), 150)}
+                    onClick={(e) => handleScroll(e, item.toLowerCase())}
                     className="text-lg font-medium text-white/80 hover:text-gold transition-colors"
                   >
                     {item}
                   </a>
                 ))}
-                <button className="px-6 py-4 bg-white text-charcoal rounded-full text-sm font-semibold hover:bg-gold hover:text-white transition-colors duration-300 flex items-center justify-center gap-2 mt-4 w-full">
+                <button 
+                  onClick={() => {
+                    setIsOpen(false);
+                    setTimeout(() => {
+                      const element = document.getElementById("contact");
+                      if (element) {
+                        const offset = 100;
+                        const elementPosition = element.getBoundingClientRect().top;
+                        const offsetPosition = elementPosition + window.scrollY - offset;
+                        window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+                      }
+                    }, 100);
+                  }}
+                  className="px-6 py-4 bg-white text-charcoal rounded-full text-sm font-semibold hover:bg-gold hover:text-white transition-colors duration-300 flex items-center justify-center gap-2 mt-4 w-full"
+                >
                   Book Consultation
                   <ArrowRight className="w-4 h-4" />
                 </button>
@@ -756,7 +806,7 @@ function Preloader() {
 // ---------------------------------------------------------
 export default function Page() {
   return (
-    <main className="bg-warm-white min-h-screen">
+    <main className="bg-warm-white min-h-screen overflow-x-hidden">
       <Preloader />
       <Navbar />
       <Hero />
