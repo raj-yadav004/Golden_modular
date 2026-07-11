@@ -558,25 +558,64 @@ function Process() {
   ];
 
   return (
-    <section id="process" className="py-32 px-6 md:px-12 bg-white text-charcoal relative overflow-hidden border-t border-black/5">
+    <section id="process" className="py-16 md:py-32 px-6 md:px-12 bg-white text-charcoal relative overflow-hidden border-t border-black/5">
       <div className="max-w-7xl mx-auto relative z-10">
         
         {/* Title Block */}
-        <div className="mb-20">
+        <div className="mb-10 md:mb-20">
           <div className="inline-block px-3 py-1 rounded-full border border-black/10 bg-black/5 text-gold text-[10px] uppercase tracking-[0.2em] font-medium mb-6">
             Our Workflow
           </div>
-          <h2 className="text-4xl md:text-6xl font-medium tracking-tight mb-4 text-charcoal">The Master Plan</h2>
+          <h2 className="text-3xl md:text-6xl font-medium tracking-tight mb-4 text-charcoal">The Master Plan</h2>
           <p className="text-charcoal/60 text-lg font-light max-w-xl">
             Our four-step methodology ensures an immaculate transition from conceptual vision to tangible reality.
           </p>
         </div>
 
-        {/* Interactive Deck Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-stretch">
+        {/* Mobile Layout (stacked cards) - visible on < lg */}
+        <div className="flex flex-col gap-6 lg:hidden">
+          {steps.map((step, idx) => (
+            <div
+              key={idx}
+              className="p-1.5 bg-charcoal/[0.02] border border-charcoal/5 rounded-[2.5rem] shadow-lg shadow-black/[0.02] flex flex-col"
+            >
+              <div className="bg-[#faf9f6] rounded-[calc(2.5rem-0.375rem)] p-6 flex flex-col gap-6 relative overflow-hidden">
+                {/* Content Block */}
+                <div className="w-full flex flex-col justify-between z-10">
+                  <div>
+                    <span className="text-[10px] font-mono tracking-widest text-gold uppercase bg-gold/10 px-3 py-1 rounded-full w-fit">
+                      Phase 0{idx + 1}
+                    </span>
+                    <h3 className="text-2xl font-medium tracking-tight text-charcoal mt-4 mb-3">
+                      {step.title}
+                    </h3>
+                    <p className="text-charcoal/60 font-light text-sm leading-relaxed mb-4">
+                      {step.desc}
+                    </p>
+                  </div>
+                  
+                  <div className="border-t border-charcoal/10 pt-4">
+                    <span className="text-[10px] uppercase font-mono tracking-widest text-charcoal/40 block mb-1">Key Deliverable</span>
+                    <span className="text-xs font-semibold text-charcoal bg-white border border-charcoal/5 px-4 py-2 rounded-full shadow-sm inline-block">
+                      {step.deliverable}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Graphic Blueprint Block */}
+                <div className="w-full h-48 relative flex items-center justify-center z-10 bg-white/40 backdrop-blur-sm rounded-[2rem] border border-charcoal/5 p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]">
+                  {step.graphic}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop Layout (interactive deck) - visible on >= lg */}
+        <div className="hidden lg:grid grid-cols-12 gap-12 lg:gap-20 items-stretch">
           
           {/* Left: Tab Selectors */}
-          <div className="col-span-12 lg:col-span-4 flex flex-col justify-center gap-2">
+          <div className="col-span-4 flex flex-col justify-center gap-2">
             {steps.map((step, idx) => (
               <button
                 key={idx}
@@ -611,7 +650,7 @@ function Process() {
           </div>
 
           {/* Right: Animate Deck Panel */}
-          <div className="col-span-12 lg:col-span-8 flex flex-col justify-center">
+          <div className="col-span-8 flex flex-col justify-center">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeStep}
@@ -621,15 +660,15 @@ function Process() {
                 transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                 className="p-1.5 bg-charcoal/[0.02] border border-charcoal/5 rounded-[2.5rem] shadow-lg shadow-black/[0.02] flex flex-col"
               >
-                <div className="bg-[#faf9f6] rounded-[calc(2.5rem-0.375rem)] p-8 md:p-12 min-h-[440px] flex flex-col md:flex-row gap-8 justify-between items-center relative overflow-hidden">
+                <div className="bg-[#faf9f6] rounded-[calc(2.5rem-0.375rem)] p-12 min-h-[440px] flex flex-row gap-8 justify-between items-center relative overflow-hidden">
                   
                   {/* Content Block */}
-                  <div className="w-full md:w-[55%] flex flex-col justify-between h-full min-h-[300px] z-10">
+                  <div className="w-[55%] flex flex-col justify-between h-full min-h-[300px] z-10">
                     <div>
                       <span className="text-[10px] font-mono tracking-widest text-gold uppercase bg-gold/10 px-3 py-1 rounded-full w-fit">
                         Phase 0{activeStep + 1}
                       </span>
-                      <h3 className="text-3xl md:text-4xl font-medium tracking-tight text-charcoal mt-6 mb-4">
+                      <h3 className="text-4xl font-medium tracking-tight text-charcoal mt-6 mb-4">
                         {steps[activeStep].title}
                       </h3>
                       <p className="text-charcoal/60 font-light text-base leading-relaxed mb-6">
@@ -646,7 +685,7 @@ function Process() {
                   </div>
 
                   {/* Graphic Blueprint Block */}
-                  <div className="w-full md:w-[40%] h-64 md:h-72 relative flex items-center justify-center z-10 bg-white/40 backdrop-blur-sm rounded-[2rem] border border-charcoal/5 p-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]">
+                  <div className="w-[40%] h-72 relative flex items-center justify-center z-10 bg-white/40 backdrop-blur-sm rounded-[2rem] border border-charcoal/5 p-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]">
                     {steps[activeStep].graphic}
                   </div>
                   
