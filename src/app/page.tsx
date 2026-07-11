@@ -204,7 +204,7 @@ function Hero() {
       <div className="absolute inset-0 w-full h-full bg-charcoal">
         <video 
           ref={videoRef} 
-          src="/hero.mp4"
+          src="/GM_24fps_webm.webm"
           autoPlay
           loop
           muted
