@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useRef, useEffect } from "react";
-import { motion, useScroll, useTransform, useMotionValueEvent, AnimatePresence } from "framer-motion";
+import { motion, useScroll, useTransform, useMotionValueEvent, AnimatePresence, useReducedMotion } from "framer-motion";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { ArrowRight, ChefHat, Sofa, BedDouble, Hammer, CheckCircle, MapPin, Phone, Mail, Star, Menu, X } from "lucide-react";
 import Image from "next/image";
+import Lenis from "lenis";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger, useGSAP);
@@ -152,143 +153,108 @@ function Navbar() {
 // ---------------------------------------------------------
 function Hero() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const statsRef = useRef<HTMLDivElement>(null);
-  const imagesRef = useRef<HTMLImageElement[]>([]);
-  const frameCount = 192; // 0 to 191
+
+  const eyebrowRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const paragraphRef = useRef<HTMLParagraphElement>(null);
+  const buttonsRef = useRef<HTMLDivElement>(null);
+
+  const prefersReducedMotion = useReducedMotion();
 
   useGSAP(() => {
-    // Load images
-    const images: HTMLImageElement[] = [];
-    let loadedCount = 0;
-    
-    for (let i = 0; i < frameCount; i++) {
-      const img = new window.Image();
-      img.decoding = "async"; // Offload decoding to a background thread
-      const num = i.toString().padStart(4, '0');
-      img.src = `/golden_modular_frames/frame_${num}.png`;
-      img.onload = () => {
-        loadedCount++;
-        if (loadedCount === 1) {
-          // Draw first frame immediately
-          const canvas = canvasRef.current;
-          const ctx = canvas?.getContext('2d', { alpha: false }); // Disable alpha for perf
-          if (canvas && ctx) {
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          }
+    // 1. Initial text entry animations using GSAP
+    if (!prefersReducedMotion) {
+      gsap.fromTo(
+        [eyebrowRef.current, titleRef.current, paragraphRef.current, buttonsRef.current],
+        { opacity: 0, y: 30 },
+        { 
+          opacity: 1, 
+          y: 0, 
+          duration: 1, 
+          stagger: 0.2, 
+          ease: "power4.out", 
+          delay: 0.2 
         }
-      };
-      images.push(img);
+      );
+
+      // Fade in the video background on mount and force play
+      if (videoRef.current) {
+        gsap.fromTo(
+          videoRef.current,
+          { opacity: 0.6 },
+          { opacity: 1, duration: 1.5, ease: "power2.out" }
+        );
+        videoRef.current.play().catch((err) => {
+          console.warn("Video play failed or was prevented:", err);
+        });
+      }
+    } else {
+      gsap.set([eyebrowRef.current, titleRef.current, paragraphRef.current, buttonsRef.current], { opacity: 1, y: 0 });
+      if (videoRef.current) {
+        gsap.set(videoRef.current, { opacity: 1 });
+      }
     }
-    imagesRef.current = images;
-
-    // Create sequence animation
-    const tl = gsap.timeline({
-      scrollTrigger: {
-        trigger: containerRef.current,
-        start: "top top",
-        end: "+=500%", // Increased scroll distance to slow down frames
-        scrub: 1.5, // Smooth scrub with slight easing
-        pin: true,
-      }
-    });
-
-    const playhead = { frame: 0 };
-    tl.to(playhead, {
-      frame: frameCount - 1,
-      ease: "none",
-      duration: 1, // Stretch across entire scroll
-      onUpdate: () => {
-        const canvas = canvasRef.current;
-        const ctx = canvas?.getContext('2d', { alpha: false });
-        const frameIndex = Math.round(playhead.frame);
-        const img = imagesRef.current[frameIndex];
-        if (canvas && ctx && img && img.complete) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        }
-      }
-    }, 0);
-
-    // Fade out text block early so it gets out of the way of the frames
-    tl.to(textRef.current, {
-      opacity: 0,
-      y: -50,
-      ease: "power2.inOut",
-      duration: 0.15
-    }, 0);
-
-    // Fade out stats block early
-    tl.to(statsRef.current, {
-      opacity: 0,
-      ease: "power2.inOut",
-      duration: 0.15
-    }, 0);
-
-    // Canvas opacity transition (0.6 to 1)
-    gsap.set(canvasRef.current, { opacity: 0.6 });
-    tl.to(canvasRef.current, { 
-      opacity: 1, 
-      ease: "none",
-      duration: 1
-    }, 0);
-
-  }, { scope: containerRef });
+  }, { scope: containerRef, dependencies: [prefersReducedMotion] });
 
   return (
-    <section ref={containerRef} className="h-screen w-full bg-charcoal overflow-hidden flex items-center justify-center relative" style={{ willChange: "transform" }}>
+    <section ref={containerRef} className="h-screen w-full bg-charcoal overflow-hidden flex items-center justify-center relative">
       <div className="absolute inset-0 w-full h-full bg-charcoal">
-        <canvas 
-          ref={canvasRef} 
-          width={1920} 
-          height={1080} 
+        <video 
+          ref={videoRef} 
+          src="/hero.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          poster="/golden_modular_frames/frame_0000.png"
           className="w-full h-full object-cover"
           style={{ willChange: "opacity" }}
         />
       </div>
 
       <div ref={textRef} className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 w-full flex flex-col items-center text-center mt-20">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.2 }}
-          className="inline-block px-4 py-1.5 rounded-full border border-white/20 glass text-white/90 text-xs font-semibold tracking-widest uppercase mb-6"
+        <div
+          ref={eyebrowRef}
+          className="inline-block px-4 py-1.5 rounded-full border border-white/20 glass text-white/90 text-xs font-semibold tracking-widest uppercase mb-6 opacity-0"
         >
           Premium Interior Design Studio
-        </motion.div>
+        </div>
         
-        <motion.h1 
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.4 }}
-          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-medium tracking-tight text-white mb-4 md:mb-6 max-w-4xl leading-[1.15] md:leading-[1.1]"
+        <h1 
+          ref={titleRef}
+          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-medium tracking-tight text-white mb-4 md:mb-6 max-w-4xl leading-[1.15] md:leading-[1.1] opacity-0"
         >
           Crafting Timeless <span className="text-gold italic font-light pr-2">Modular</span> Spaces
-        </motion.h1>
+        </h1>
         
-        <motion.p 
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.6 }}
-          className="text-base sm:text-lg text-white/70 max-w-2xl font-light mb-8 md:mb-10 leading-relaxed px-4 md:px-0"
+        <p 
+          ref={paragraphRef}
+          className="text-base sm:text-lg text-white/70 max-w-2xl font-light mb-8 md:mb-10 leading-relaxed px-4 md:px-0 opacity-0"
         >
           Premium modular kitchens, wardrobes and complete interior solutions designed with absolute precision and elegant minimalism.
-        </motion.p>
+        </p>
         
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.8 }}
-          className="flex flex-col sm:flex-row items-center gap-4 md:gap-5 w-full sm:w-auto px-4 sm:px-0"
+        <div 
+          ref={buttonsRef}
+          className="flex flex-col sm:flex-row items-center gap-4 md:gap-5 w-full sm:w-auto px-4 sm:px-0 opacity-0"
         >
-          <motion.a href="#portfolio" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="px-6 py-3 md:px-7 md:py-3.5 bg-white text-charcoal rounded-full text-sm font-medium hover:bg-gold hover:text-white transition-all duration-300 w-full sm:w-auto shadow-lg shadow-white/5 hover:shadow-gold/20 flex justify-center">
+          <a 
+            href="#portfolio" 
+            className="px-6 py-3 md:px-7 md:py-3.5 bg-white text-charcoal rounded-full text-sm font-medium hover:bg-gold hover:text-white transition-all duration-300 w-full sm:w-auto shadow-lg shadow-white/5 hover:shadow-gold/20 flex justify-center hover:scale-105 active:scale-95"
+          >
             Explore Portfolio
-          </motion.a>
-          <motion.a href="#contact" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="px-6 py-3 md:px-7 md:py-3.5 bg-transparent border border-white/30 text-white rounded-full text-sm font-medium hover:bg-white/10 transition-all duration-300 w-full sm:w-auto flex justify-center">
+          </a>
+          <a 
+            href="#contact" 
+            className="px-6 py-3 md:px-7 md:py-3.5 bg-transparent border border-white/30 text-white rounded-full text-sm font-medium hover:bg-white/10 transition-all duration-300 w-full sm:w-auto flex justify-center hover:scale-105 active:scale-95"
+          >
             Book Consultation
-          </motion.a>
-        </motion.div>
+          </a>
+        </div>
       </div>
 
       <div 
@@ -511,50 +477,184 @@ function Portfolio() {
 // PROCESS
 // ---------------------------------------------------------
 function Process() {
+  const [activeStep, setActiveStep] = React.useState(0);
+
   const steps = [
-    { title: "Consultation", desc: "Understanding your vision and lifestyle requirements." },
-    { title: "Planning & 3D Design", desc: "Detailed layouts and photorealistic renderings." },
-    { title: "Manufacturing", desc: "Precision engineering at our state-of-the-art facility." },
-    { title: "Installation", desc: "Flawless execution by our expert craftsmen." },
+    { 
+      title: "Consultation", 
+      desc: "Understanding your vision, lifestyle requirements, and design preferences through detailed spatial planning and site analysis.", 
+      deliverable: "Spatial zoning map & material mood board",
+      graphic: (
+        <svg className="w-full h-full stroke-charcoal/20 text-gold" viewBox="0 0 160 120" fill="none">
+          <rect x="10" y="10" width="140" height="100" strokeWidth="0.5" rx="2" />
+          <line x1="60" y1="10" x2="60" y2="110" strokeWidth="0.5" />
+          <line x1="60" y1="60" x2="150" y2="60" strokeWidth="0.5" />
+          <rect x="20" y="20" width="30" height="20" strokeWidth="0.5" strokeDasharray="2,2" rx="1" />
+          <circle cx="35" cy="80" r="15" strokeWidth="0.5" strokeDasharray="2,2" />
+          <path d="M 80 25 L 130 25 L 130 45 L 80 45 Z" strokeWidth="0.5" rx="1" />
+          <line x1="15" y1="5" x2="145" y2="5" strokeWidth="0.25" />
+          <path d="M 15 3 L 15 7 M 145 3 L 145 7" strokeWidth="0.25" />
+          <text x="70" y="4" fill="currentColor" className="text-[5px] text-charcoal/40 font-mono">12,400 mm</text>
+          <text x="25" y="32" fill="currentColor" className="text-[5px] text-charcoal/30 font-mono">ZONE A</text>
+          <text x="95" y="37" fill="currentColor" className="text-[5px] text-charcoal/30 font-mono">LIVING AREA</text>
+          <text x="95" y="87" fill="currentColor" className="text-[5px] text-charcoal/30 font-mono">KITCHEN ZONE</text>
+        </svg>
+      )
+    },
+    { 
+      title: "Planning & 3D Design", 
+      desc: "Creating detailed 2D architectural layouts and photorealistic 3D renderings to visualize color tones, modular placements, and exact finishes.", 
+      deliverable: "Photorealistic 3D renders & cabinet drawings",
+      graphic: (
+        <svg className="w-full h-full stroke-charcoal/20 text-gold" viewBox="0 0 120 120" fill="none">
+          <path d="M 60 20 L 95 38 L 95 82 L 60 100 L 25 82 L 25 38 Z" strokeWidth="0.5" />
+          <path d="M 60 20 L 60 100" strokeWidth="0.5" />
+          <path d="M 25 38 L 60 56 L 95 38" strokeWidth="0.5" />
+          <path d="M 25 60 L 60 78 L 95 60" strokeWidth="0.5" />
+          <path d="M 42.5 47 L 60 56 L 77.5 47" strokeWidth="0.5" strokeDasharray="1,1" />
+          <path d="M 42.5 69 L 60 78 L 77.5 69" strokeWidth="0.5" strokeDasharray="1,1" />
+          <path d="M 102 38 L 107 35.5" strokeWidth="0.25" />
+          <path d="M 102 82 L 107 79.5" strokeWidth="0.25" />
+          <line x1="105" y1="36.5" x2="105" y2="80.5" strokeWidth="0.25" strokeDasharray="1,1" />
+          <text x="107" y="60" fill="currentColor" className="text-[5px] text-charcoal/40 font-mono">H: 900</text>
+        </svg>
+      )
+    },
+    { 
+      title: "Manufacturing", 
+      desc: "Precision manufacturing using advanced CNC tooling and high-grade materials at our automated facility, ensuring micro-millimeter tolerance.", 
+      deliverable: "Precision-manufactured modular hardware",
+      graphic: (
+        <svg className="w-full h-full stroke-charcoal/20 text-gold" viewBox="0 0 120 120" fill="none">
+          <rect x="15" y="15" width="90" height="90" strokeWidth="0.25" strokeDasharray="1,3" />
+          <circle cx="60" cy="60" r="35" strokeWidth="0.5" />
+          <circle cx="60" cy="60" r="6" strokeWidth="0.5" />
+          <line x1="60" y1="15" x2="60" y2="105" strokeWidth="0.25" strokeDasharray="2,2" />
+          <line x1="15" y1="60" x2="105" y2="60" strokeWidth="0.25" strokeDasharray="2,2" />
+          <text x="63" y="24" fill="currentColor" className="text-[4px] text-charcoal/40 font-mono">Y-AXIS CUT</text>
+          <text x="82" y="57" fill="currentColor" className="text-[4px] text-charcoal/40 font-mono">X-AXIS CUT</text>
+          <rect x="35" y="35" width="50" height="50" strokeWidth="0.5" strokeDasharray="2,2" />
+          <path d="M 33 33 L 37 37 M 87 33 L 83 37 M 87 87 L 83 83 M 33 87 L 37 83" strokeWidth="0.25" />
+        </svg>
+      )
+    },
+    { 
+      title: "Installation", 
+      desc: "Seamless on-site installation, alignment, and finishing by our skilled installation team, resulting in a flawless final aesthetic.", 
+      deliverable: "Turnkey modular space handover",
+      graphic: (
+        <svg className="w-full h-full stroke-charcoal/20 text-gold" viewBox="0 0 160 120" fill="none">
+          <line x1="15" y1="60" x2="145" y2="60" strokeWidth="0.5" strokeDasharray="4,2" />
+          <circle cx="80" cy="60" r="15" strokeWidth="0.5" />
+          <rect x="72" y="57" width="16" height="6" rx="2" strokeWidth="0.5" />
+          <circle cx="80" cy="60" r="2" fill="#d4af37" />
+          <path d="M 25 85 L 45 85 L 45 65" strokeWidth="0.5" />
+          <path d="M 135 85 L 115 85 L 115 65" strokeWidth="0.5" />
+          <text x="49" y="80" fill="currentColor" className="text-[5px] text-charcoal/40 font-mono">90.00° VERT</text>
+          <text x="65" y="35" fill="currentColor" className="text-[5px] text-charcoal/40 font-mono">LEVEL ALIGNMENT</text>
+        </svg>
+      )
+    }
   ];
 
   return (
-    <section id="process" className="py-32 px-6 md:px-12 bg-charcoal text-white relative overflow-hidden">
-      {/* Background Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[50%] bg-gold/5 blur-[120px] rounded-full pointer-events-none" />
-      
+    <section id="process" className="py-32 px-6 md:px-12 bg-white text-charcoal relative overflow-hidden border-t border-black/5">
       <div className="max-w-7xl mx-auto relative z-10">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-20 gap-8">
-          <div>
-            <h2 className="text-4xl md:text-6xl font-medium tracking-tight mb-4">The Master Plan</h2>
-            <p className="text-white/60 text-lg font-light max-w-xl">
-              Our four-step methodology ensures an immaculate transition from conceptual vision to tangible reality.
-            </p>
-          </div>
-        </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {steps.map((step, i) => (
-            <motion.div 
-              key={i}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.15, duration: 0.7, ease: "easeOut" }}
-              className="relative group p-8 md:p-10 rounded-3xl glass-dark border border-white/5 hover:border-gold/30 hover:bg-white/10 transition-all duration-500 overflow-hidden min-h-[320px] flex flex-col justify-end hover:-translate-y-2 hover:shadow-[0_20px_40px_-15px_rgba(212,175,55,0.15)]"
-            >
-              <div className="absolute top-6 right-6 text-7xl font-bold text-white/5 group-hover:text-gold/10 transition-colors duration-500 pointer-events-none select-none">
-                0{i + 1}
-              </div>
-              <div className="relative z-10">
-                <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-gold mb-6 group-hover:scale-110 group-hover:bg-gold/20 transition-all duration-500">
-                  <CheckCircle className="w-5 h-5" />
+        {/* Title Block */}
+        <div className="mb-20">
+          <div className="inline-block px-3 py-1 rounded-full border border-black/10 bg-black/5 text-gold text-[10px] uppercase tracking-[0.2em] font-medium mb-6">
+            Our Workflow
+          </div>
+          <h2 className="text-4xl md:text-6xl font-medium tracking-tight mb-4 text-charcoal">The Master Plan</h2>
+          <p className="text-charcoal/60 text-lg font-light max-w-xl">
+            Our four-step methodology ensures an immaculate transition from conceptual vision to tangible reality.
+          </p>
+        </div>
+
+        {/* Interactive Deck Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-stretch">
+          
+          {/* Left: Tab Selectors */}
+          <div className="col-span-12 lg:col-span-4 flex flex-col justify-center gap-2">
+            {steps.map((step, idx) => (
+              <button
+                key={idx}
+                onClick={() => setActiveStep(idx)}
+                onMouseEnter={() => setActiveStep(idx)}
+                className="w-full text-left py-6 border-b border-charcoal/10 transition-all duration-300 relative group cursor-pointer focus:outline-none"
+              >
+                {/* Slid-in gold highlight bar on left */}
+                <div 
+                  className={cn(
+                    "absolute left-0 top-0 bottom-0 w-[3px] bg-gold transition-transform duration-300 origin-left scale-y-0",
+                    activeStep === idx && "scale-y-100"
+                  )}
+                />
+                
+                <div className="flex items-center gap-6 px-6">
+                  <span className={cn(
+                    "font-mono text-xs transition-colors duration-300",
+                    activeStep === idx ? "text-gold" : "text-charcoal/40"
+                  )}>
+                    0{idx + 1}
+                  </span>
+                  <span className={cn(
+                    "text-xl font-medium tracking-tight transition-all duration-300",
+                    activeStep === idx ? "text-charcoal translate-x-1" : "text-charcoal/50 group-hover:text-charcoal/80 group-hover:translate-x-0.5"
+                  )}>
+                    {step.title}
+                  </span>
                 </div>
-                <h3 className="text-2xl font-medium mb-3">{step.title}</h3>
-                <p className="text-white/60 font-light text-sm leading-relaxed">{step.desc}</p>
-              </div>
-            </motion.div>
-          ))}
+              </button>
+            ))}
+          </div>
+
+          {/* Right: Animate Deck Panel */}
+          <div className="col-span-12 lg:col-span-8 flex flex-col justify-center">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeStep}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                className="p-1.5 bg-charcoal/[0.02] border border-charcoal/5 rounded-[2.5rem] shadow-lg shadow-black/[0.02] flex flex-col"
+              >
+                <div className="bg-[#faf9f6] rounded-[calc(2.5rem-0.375rem)] p-8 md:p-12 min-h-[440px] flex flex-col md:flex-row gap-8 justify-between items-center relative overflow-hidden">
+                  
+                  {/* Content Block */}
+                  <div className="w-full md:w-[55%] flex flex-col justify-between h-full min-h-[300px] z-10">
+                    <div>
+                      <span className="text-[10px] font-mono tracking-widest text-gold uppercase bg-gold/10 px-3 py-1 rounded-full w-fit">
+                        Phase 0{activeStep + 1}
+                      </span>
+                      <h3 className="text-3xl md:text-4xl font-medium tracking-tight text-charcoal mt-6 mb-4">
+                        {steps[activeStep].title}
+                      </h3>
+                      <p className="text-charcoal/60 font-light text-base leading-relaxed mb-6">
+                        {steps[activeStep].desc}
+                      </p>
+                    </div>
+                    
+                    <div className="border-t border-charcoal/10 pt-6 mt-auto">
+                      <span className="text-[10px] uppercase font-mono tracking-widest text-charcoal/40 block mb-2">Key Deliverable</span>
+                      <span className="text-xs font-semibold text-charcoal bg-white border border-charcoal/5 px-4 py-2 rounded-full shadow-sm inline-block">
+                        {steps[activeStep].deliverable}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Graphic Blueprint Block */}
+                  <div className="w-full md:w-[40%] h-64 md:h-72 relative flex items-center justify-center z-10 bg-white/40 backdrop-blur-sm rounded-[2rem] border border-charcoal/5 p-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]">
+                    {steps[activeStep].graphic}
+                  </div>
+                  
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
         </div>
       </div>
     </section>
@@ -805,6 +905,36 @@ function Preloader() {
 // MAIN PAGE EXPORT
 // ---------------------------------------------------------
 export default function Page() {
+  useEffect(() => {
+    // Disable smooth scroll if prefers-reduced-motion is active
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) return;
+
+    const lenis = new Lenis({
+      lerp: 0.1,
+    });
+
+    const updateScrollTrigger = () => {
+      ScrollTrigger.update();
+    };
+
+    lenis.on("scroll", updateScrollTrigger);
+
+    let rafId: number;
+    const raf = (time: number) => {
+      lenis.raf(time);
+      rafId = requestAnimationFrame(raf);
+    };
+
+    rafId = requestAnimationFrame(raf);
+
+    return () => {
+      lenis.off("scroll", updateScrollTrigger);
+      lenis.destroy();
+      cancelAnimationFrame(rafId);
+    };
+  }, []);
+
   return (
     <main className="bg-warm-white min-h-screen overflow-x-hidden">
       <Preloader />
